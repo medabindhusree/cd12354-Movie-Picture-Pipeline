@@ -32,8 +32,8 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Install pipenv
-        run: pip install pipenv
+      - name: Install Pipenv
+        run: python -m pip install pipenv
 
       - name: Install dependencies
         run: pipenv install --dev
@@ -58,8 +58,8 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Install pipenv
-        run: pip install pipenv
+      - name: Install Pipenv
+        run: python -m pip install pipenv
 
       - name: Install dependencies
         run: pipenv install --dev
@@ -84,20 +84,18 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build and push Docker image
-        working-directory: starter/backend
-        env:
-          ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" .
-          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+        uses: docker/build-push-action@v6
+        with:
+          context: starter/backend
+          push: true
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
 
   deploy:
     name: Deploy Backend to EKS
@@ -113,10 +111,10 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-            aws-region: ${{ env.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Configure kubectl
         run: |
@@ -135,3 +133,7 @@ jobs:
         working-directory: starter/backend/k8s
         run: |
           kustomize build | kubectl apply -f -
+
+      - name: Verify backend deployment
+        run: |
+          kubectl rollout status deployment/backend --timeout=180s
