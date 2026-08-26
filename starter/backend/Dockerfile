@@ -31,4 +31,4 @@ USER app
 
 WORKDIR /app
 
-CMD ["uwsgi", "--http", "0.0.0.0:5000", "--master", "--enable-threads", "--module", "movies.movies_api:app"]
+CMD ["uwsgi", "--http", "0.0.0.0:5000", "--master", "--enable-threads", "--module", "__init__:app"]
